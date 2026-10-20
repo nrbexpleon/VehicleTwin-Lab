@@ -11,10 +11,7 @@ const clone = value => structuredClone(value);
 export class TwinEngine {
   #catalog;
   #sinks;
-  constructor({catalog, sinks = []}) {
-    this.#catalog = catalog;
-    this.#sinks = sinks;
-  }
+  constructor({catalog, sinks = []}) { this.#catalog = catalog; this.#sinks = sinks; }
 
   async run(input) {
     const scenario = validateScenario(input, this.#catalog);
@@ -30,9 +27,7 @@ export class TwinEngine {
     const statistics = {ticks: 0, published: 0, dropped: 0, faultsActivated: 0, restarts: 0, delayed: 0};
     const activated = new Set();
 
-    for (const [id, value] of Object.entries(scenario.initialState)) {
-      state.set(id, sample(id, value, clock.now(), 'valid', 'scenario'));
-    }
+    for (const [id, value] of Object.entries(scenario.initialState)) state.set(id, sample(id, value, clock.now(), 'valid', 'scenario'));
 
     while (clock.now() <= scenario.durationMs) {
       const now = clock.now();
@@ -46,21 +41,22 @@ export class TwinEngine {
       }
 
       const activeFaults = faults.filter(fault => isFaultActive(fault, now));
+      const newlyActivated = [];
       for (const fault of activeFaults) {
         if (!activated.has(fault.id)) {
-          activated.add(fault.id); statistics.faultsActivated++;
+          activated.add(fault.id); newlyActivated.push(fault); statistics.faultsActivated++;
           trace.push({timeMs: now, kind: 'fault-activated', faultId: fault.id, faultType: fault.type});
         }
       }
 
-      if (activeFaults.some(f => f.type === 'ecu-restart')) {
+      if (newlyActivated.some(fault => fault.type === 'ecu-restart')) {
         state.clear(); frozen.clear(); statistics.restarts++;
         trace.push({timeMs: now, kind: 'ecu-restart'});
       }
 
       for (const [id, base] of [...state]) {
-        const applicable = activeFaults.filter(f => f.signal === id || f.signal === '*');
-        if (applicable.some(f => f.type === 'drop')) { statistics.dropped++; continue; }
+        const applicable = activeFaults.filter(fault => fault.signal === id || fault.signal === '*');
+        if (applicable.some(fault => fault.type === 'drop')) { statistics.dropped++; continue; }
         let current = clone(base);
         for (const fault of applicable) {
           if (fault.type === 'freeze') {
@@ -68,14 +64,16 @@ export class TwinEngine {
             current = clone(frozen.get(fault.id));
           } else if (fault.type === 'offset' || fault.type === 'noise') {
             if (typeof current.value === 'number') current.value = applySignalFault(current.value, fault, random);
-          } else if (fault.type === 'invalid') current.validity = 'invalid';
-          else if (fault.type === 'stale') current.validity = 'stale';
+          } else if (fault.type === 'invalid') {
+            current.validity = 'invalid'; current.quality = 0;
+          } else if (fault.type === 'stale') {
+            current.validity = 'stale'; current.quality = 0;
+          }
         }
-        current.timestampMs = applicable.some(f => f.type === 'stale' || f.type === 'freeze') ? current.timestampMs : now;
-        const latency = Math.max(0, ...applicable.filter(f => f.type === 'network-latency').map(f => Number(f.value ?? 0)));
-        if (latency) {
-          delayed.push({releaseMs: now + latency, data: current}); statistics.delayed++;
-        } else await this.#publish(current, trace, statistics, now);
+        current.timestampMs = applicable.some(fault => fault.type === 'stale' || fault.type === 'freeze') ? current.timestampMs : now;
+        const latency = Math.max(0, ...applicable.filter(fault => fault.type === 'network-latency').map(fault => Number(fault.value ?? 0)));
+        if (latency) { delayed.push({releaseMs: now + latency, data: current}); statistics.delayed++; }
+        else await this.#publish(current, trace, statistics, now);
       }
 
       for (let index = delayed.length - 1; index >= 0; --index) {
@@ -116,8 +114,6 @@ export function validateScenario(input, catalog) {
     const result = catalog.validate(id, value);
     if (!result.ok) throw new Error(`invalid initial signal ${id}: ${result.reason}`);
   }
-  for (const assertion of scenario.assertions) {
-    if (!assertion.id || !assertion.signal) throw new TypeError('assertion id and signal required');
-  }
+  for (const assertion of scenario.assertions) if (!assertion.id || !assertion.signal) throw new TypeError('assertion id and signal required');
   return scenario;
 }
