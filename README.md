@@ -2,20 +2,20 @@
 
 A deterministic vehicle digital twin and fault-injection laboratory for advanced automotive software validation. It simulates typed vehicle signals on a virtual clock, injects reproducible failures, evaluates engineering assertions, captures traces, and produces integrity-protected evidence.
 
-> All values are simulation data. Physical actuation is not implemented. This tool supports engineering validation; it does not provide certification.
+> All values are simulation data. Physical actuation is not implemented. This supports engineering validation; it does not provide certification.
 
-## What works
+## Implemented capabilities
 
-- OEM-neutral, VSS-mappable typed signal catalogue with units and valid ranges
+- OEM-neutral, VSS-mappable typed signal catalogue with units and ranges
 - deterministic virtual clock and seeded pseudo-random noise
-- time-indexed signal scenarios and repeatable replay
-- fault injection: drop, freeze, offset, noise, invalid, stale, ECU restart, and network latency
-- positive, boundary, validity, and freshness assertions
-- trace timeline, run statistics, final state, and SHA-256 evidence integrity
+- time-indexed scenarios and repeatable trace replay
+- drop, freeze, offset, noise, invalid, stale, edge-triggered ECU restart, and network-latency faults
+- value, validity, and freshness assertions
+- trace timeline, statistics, final state, and SHA-256 evidence integrity
 - bounded REST API with optional bearer-token access
-- HTTP signal sink for SmartVehicle or another isolated test endpoint
+- HTTP signal sink for SmartVehicle or another isolated endpoint
 - responsive browser engineering console
-- 30 dependency-free compiled/runtime tests
+- **32 dependency-free runtime tests**
 
 ## Quick start
 
@@ -27,14 +27,9 @@ npm run demo
 npm start
 ```
 
-Open <http://127.0.0.1:8080>. For API protection:
+Open <http://127.0.0.1:8080>.
 
-```bash
-API_TOKEN='replace-with-a-secret-from-your-vault' npm start
-curl -H 'Authorization: Bearer replace-with-a-secret-from-your-vault' http://127.0.0.1:8080/api/catalog
-```
-
-Never commit the token.
+For API protection, provide `API_TOKEN` from a secret manager and send it as a Bearer token. Never commit it.
 
 ## API
 
@@ -48,7 +43,7 @@ Never commit the token.
 | GET | `/api/runs/{id}/evidence` | Integrity-protected evidence |
 | POST | `/api/evidence/verify` | Detect evidence tampering |
 
-Request bodies are limited to 1,000,000 bytes. Duration is limited to 3,600,000 ms and scenarios to 10,000 events.
+Bodies are limited to **1,000,000 bytes**, virtual duration to **3,600,000 ms**, and scenarios to **10,000 events**. The in-memory API retains at most **100 runs**.
 
 ## Architecture
 
@@ -64,12 +59,12 @@ flowchart LR
   E --> H[HTTP / Memory sinks]
   T --> P[SHA-256 Evidence Pack]
   A --> P
-  H -. optional .-> SV[SmartVehicle signal endpoint]
+  H -. optional .-> SV[SmartVehicle endpoint]
 ```
 
-The domain engine has no network, UI, database, or vehicle-hardware dependency. Adapters can be replaced without changing scenario semantics.
+The domain engine has no network, UI, database, or vehicle-hardware dependency. Adapters can change without changing scenario semantics. See [architecture contracts](docs/architecture.md) and the [threat model](docs/threat-model.md).
 
-## Scenario model
+## Scenario example
 
 ```json
 {
@@ -84,14 +79,12 @@ The domain engine has no network, UI, database, or vehicle-hardware dependency. 
 }
 ```
 
-## Integration roadmap
+## Honest roadmap
 
-The next target adapters are a SmartVehicle-native sink, SocketCAN/vcan bridge, PCAP import, VSS catalogue import, OpenSCENARIO event mapping, distributed simulation coordination, persistent run storage, signed evidence, HIL execution, and role-based multi-tenant access. These are not claimed as implemented.
+SmartVehicle-native composition, SocketCAN/vcan, PCAP import, VSS import, OpenSCENARIO mapping, distributed simulation, durable storage, digitally signed evidence, HIL execution, OIDC, and tenant isolation are not yet implemented.
 
-## Security and safety
+## Security, safety, and licensing
 
-See [SECURITY.md](SECURITY.md) and the [threat model](docs/threat-model.md). The default server binds only to loopback, emits restrictive browser headers, bounds resources, validates signal types/ranges, and supports bearer authentication. It must remain isolated from physical actuator networks unless separately safety-reviewed.
+The server binds to loopback, emits restrictive browser headers, bounds resources, validates signal types/ranges, and supports bearer authentication. Keep it isolated from physical actuator networks unless separately safety-reviewed. See [SECURITY.md](SECURITY.md).
 
-## License
-
-Proprietary source-available commercial license. Production, commercial, customer, vehicle, embedded-system, or field use requires a separate written agreement. See [LICENSE](LICENSE) or contact `nagaraj.rbhagwat@expleogroup.com` or an authorized Expleo Group representative. Earlier versions validly released under prior terms retain those grants.
+This version is proprietary and source-available. Production, commercial, customer, vehicle, embedded-system, or field use requires a separate written agreement. See [LICENSE](LICENSE) or contact `nagaraj.rbhagwat@expleogroup.com` or an authorized Expleo Group representative. Earlier versions validly released under prior terms retain those grants.
