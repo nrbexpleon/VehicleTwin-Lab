@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {SignalCatalog,SignalType} from '../src/domain/catalog.mjs';import {VirtualClock} from '../src/domain/clock.mjs';import {SeededRandom} from '../src/domain/prng.mjs';
+const defs=[{id:'Speed',type:'number',min:0,max:300,unit:'km/h'},{id:'Mode',type:'string'},{id:'Count',type:'integer'},{id:'Ready',type:'boolean'}];
+test('catalog registers and lists definitions',()=>{const c=new SignalCatalog(defs);assert.equal(c.list().length,4);assert.equal(c.get('Speed').unit,'km/h')});
+test('catalog rejects duplicate signals',()=>assert.throws(()=>new SignalCatalog([defs[0],defs[0]]),/duplicate/));
+test('catalog rejects unsupported types',()=>assert.throws(()=>new SignalCatalog([{id:'x',type:'object'}]),/supported type/));
+test('catalog validates number range',()=>{const c=new SignalCatalog(defs);assert.equal(c.validate('Speed',42).ok,true);assert.equal(c.validate('Speed',301).reason,'range')});
+test('catalog validates scalar types',()=>{const c=new SignalCatalog(defs);assert.equal(c.validate('Mode','READY').ok,true);assert.equal(c.validate('Count',1.2).reason,'type');assert.equal(c.validate('Ready',1).reason,'type')});
+test('unknown signal is rejected',()=>assert.equal(new SignalCatalog(defs).validate('Missing',1).reason,'unknown-signal'));
+test('virtual clock advances deterministically',()=>{const c=new VirtualClock(10);assert.equal(c.advance(5),15);c.set(20);assert.equal(c.now(),20)});
+test('virtual clock rejects backward time',()=>{const c=new VirtualClock(10);assert.throws(()=>c.set(9),/backward/);assert.throws(()=>c.advance(-1),/non-negative/)});
+test('seeded random repeats sequence',()=>{const a=new SeededRandom(42),b=new SeededRandom(42);assert.deepEqual([a.next(),a.next(),a.next()],[b.next(),b.next(),b.next()])});

@@ -1,0 +1,30 @@
+{
+  "schemaVersion":"1.0",
+  "name":"thermal-network-fault",
+  "description":"Battery warming drive with delayed and stale telemetry",
+  "seed":42,
+  "durationMs":5000,
+  "tickMs":500,
+  "initialState":{
+    "Vehicle.Speed":0,
+    "Vehicle.Powertrain.Battery.SoC":82,
+    "Vehicle.Powertrain.Battery.Temperature":25,
+    "Vehicle.OperatingState":"READY",
+    "Vehicle.Diagnostics.DTCCount":0
+  },
+  "events":[
+    {"id":"accelerate","atMs":500,"signal":"Vehicle.Speed","value":45},
+    {"id":"warm-1","atMs":1500,"signal":"Vehicle.Powertrain.Battery.Temperature","value":44},
+    {"id":"warm-2","atMs":3000,"signal":"Vehicle.Powertrain.Battery.Temperature","value":62},
+    {"id":"slow","atMs":4500,"signal":"Vehicle.Speed","value":10}
+  ],
+  "faults":[
+    {"id":"battery-latency","type":"network-latency","signal":"Vehicle.Powertrain.Battery.SoC","atMs":1000,"durationMs":2000,"value":750},
+    {"id":"temperature-stale","type":"stale","signal":"Vehicle.Powertrain.Battery.Temperature","atMs":3000,"durationMs":1000}
+  ],
+  "assertions":[
+    {"id":"speed-bounded","signal":"Vehicle.Speed","operator":"lte","expected":60},
+    {"id":"thermal-below-critical","signal":"Vehicle.Powertrain.Battery.Temperature","operator":"lt","expected":70},
+    {"id":"no-dtc","signal":"Vehicle.Diagnostics.DTCCount","operator":"eq","expected":0}
+  ]
+}

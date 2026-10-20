@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createEvidence,verifyEvidence} from '../src/domain/evidence.mjs';import {validateFault,isFaultActive,applySignalFault} from '../src/domain/faults.mjs';import {SeededRandom} from '../src/domain/prng.mjs';import {HttpSignalSink} from '../src/adapters/http-sink.mjs';
+const run={runId:'r1',scenario:'demo',seed:1,result:'passed',statistics:{ticks:1},assertions:[],trace:[]};
+test('evidence hash verifies',()=>assert.equal(verifyEvidence(createEvidence(run)),true));
+test('evidence tampering is detected',()=>{const e=createEvidence(run);e.result='failed';assert.equal(verifyEvidence(e),false)});
+test('fault validation accepts supported fault',()=>assert.equal(validateFault({id:'x',type:'drop',atMs:0}).type,'drop'));
+test('fault validation rejects unknown type',()=>assert.throws(()=>validateFault({id:'x',type:'magic',atMs:0}),/supported/));
+test('fault activation respects duration',()=>{const f=validateFault({id:'x',type:'drop',atMs:10,durationMs:5});assert.equal(isFaultActive(f,9),false);assert.equal(isFaultActive(f,10),true);assert.equal(isFaultActive(f,15),false)});
+test('offset fault transforms value',()=>assert.equal(applySignalFault(10,{type:'offset',value:3},new SeededRandom()),13));
+test('HTTP sink validates protocol',()=>assert.throws(()=>new HttpSignalSink({url:'file:///tmp/a'}),/HTTP/));
+test('HTTP sink publishes versioned envelope',async()=>{let request;const sink=new HttpSignalSink({url:'https://example.test/signals',token:'x',fetchImpl:async(u,o)=>{request={u,o};return{ok:true}}});await sink.publish({id:'Speed',value:1});assert.equal(request.o.headers.authorization,'Bearer x');assert.equal(JSON.parse(request.o.body).schemaVersion,'1.0')});
+test('HTTP sink rejects remote failure',async()=>{const sink=new HttpSignalSink({url:'https://example.test',fetchImpl:async()=>({ok:false,status:503})});await assert.rejects(()=>sink.publish({}),/503/)});

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "signals": [
+    {"id":"Vehicle.Speed","type":"number","unit":"km/h","min":0,"max":300,"description":"Longitudinal vehicle speed"},
+    {"id":"Vehicle.Powertrain.Battery.SoC","type":"number","unit":"%","min":0,"max":100,"description":"Traction battery state of charge"},
+    {"id":"Vehicle.Powertrain.Battery.Temperature","type":"number","unit":"degC","min":-40,"max":120,"safetyRelevant":true},
+    {"id":"Vehicle.OperatingState","type":"string","description":"Vehicle operating state"},
+    {"id":"Vehicle.Diagnostics.DTCCount","type":"integer","min":0,"max":10000,"description":"Active diagnostic trouble code count"}
+  ]
+}
